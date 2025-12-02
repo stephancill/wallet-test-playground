@@ -56,6 +56,7 @@ function App() {
   const [sendCallsResult, setSendCallsResult] = useState<any>(null);
   const [callsStatus, setCallsStatus] = useState<any>(null);
   const [walletConnectResult, setWalletConnectResult] = useState<any>(null);
+  const [getCodeResult, setGetCodeResult] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: txReceipt } = useWaitForTransactionReceipt({
@@ -126,7 +127,7 @@ function App() {
       const hash = await sendTransactionAsync({
         // to: account.addresses[0],
         to: "0x8d25687829D6b85d9e0020B8c89e3Ca24dE20a89", // stephancill.eth
-        value: parseEther("0"),
+        value: parseEther("0.001"),
       });
       setTxHash(hash);
     } catch (err: any) {
@@ -255,6 +256,36 @@ function App() {
         value: 0n,
       });
       setTxHash(hash);
+    } catch (err: any) {
+      setActionError(err?.message ?? String(err));
+    }
+  }
+
+  async function handleGetCode() {
+    try {
+      setActionError(null);
+      setGetCodeResult(null);
+
+      // Test with USDC contract on current chain (or mainnet fallback)
+      const testAddresses: Record<number, string> = {
+        1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum
+        8453: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
+        10: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85", // USDC on Optimism
+        42161: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // USDC on Arbitrum
+      };
+
+      const contractAddress =
+        testAddresses[chainId] || testAddresses[1];
+
+      const code = await (window as any).ethereum.request({
+        method: "eth_getCode",
+        params: [contractAddress, "latest"],
+      });
+
+      const preview = code.length > 100 ? `${code.slice(0, 100)}...` : code;
+      setGetCodeResult(
+        `Address: ${contractAddress}\nLength: ${code.length} chars\nPreview: ${preview}`
+      );
     } catch (err: any) {
       setActionError(err?.message ?? String(err));
     }
@@ -459,6 +490,17 @@ function App() {
             </button>
             {txHash && <div>txHash: {txHash}</div>}
             {txReceipt && <div>receipt status: {txReceipt.status}</div>}
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <button type="button" onClick={handleGetCode}>
+              eth_getCode (USDC contract)
+            </button>
+            {getCodeResult && (
+              <pre style={{ fontSize: 12, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                {getCodeResult}
+              </pre>
+            )}
           </div>
 
           {actionError && <div style={{ color: "red" }}>{actionError}</div>}
